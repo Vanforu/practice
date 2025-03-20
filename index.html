@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI刷题</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        .container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .state-part {
+            padding: 10px 20px;
+            text-align: right;
+            background: #f5f5f5;
+            
+        }
+        
+        .main-container {
+            display: flex;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .question-part {
+            overflow: auto;
+        }
+        
+        .question-list {
+            width: 250px;
+            background: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .question-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .question-item:hover {
+            background: #e0e0e0;
+        }
+        
+        .question-item.active {
+            background: #e3f2fd;
+            border-left: 4px solid #1976D2;
+        }
+        
+        .status-tag {
+            min-width: 12px;
+            border-radius: 2px;
+            margin-left: 5px;
+            vertical-align: middle;
+        }
+        
+        .answered {
+            background: #1890ff;
+            font-size: 10px;
+            color: #fff;
+            padding: 2px 3px;
+        }
+        
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .question-content {
+            padding: 20px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .answer-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            resize: vertical;
+        }
+        
+        .submit-answer {
+            padding: 8px 15px;
+            background: #1976D2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .submit-answer:hover {
+            background: #1565C0;
+        }
+        .answer-actions {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .control-btn {
+            flex: 1;
+            padding: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            color: white;
+        }
+        
+        .refresh-btn {
+            background: #FF9800;
+        }
+
+        .summary-btn {
+            background-color: #ddd;
+            cursor: not-allowed;
+            color: #cccccc;
+            min-width: 100px;
+        }
+        
+        .refresh-btn:hover {
+            background: #F57C00;
+        }
+
+        /* 添加弹框相关样式 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-close {
+            cursor: pointer;
+            font-size: 20px;
+        }
+
+        .question-type-form {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .form-item {
+            display: flex;
+            align-items: center;
+        }
+
+        .form-item label {
+            flex: 1;
+        }
+
+        .form-item input {
+            width: 60px;
+            padding: 4px;
+            margin-left: 10px;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+        }
+
+        .modal-footer {
+            margin-top: 20px;
+            text-align: right;
+        }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            top: 20px;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            display: none;
+            z-index: 1001;
+            white-space: nowrap;
+        }
+
+        .add-custom-type {
+            grid-column: span 2;
+            padding: 10px 0;
+            border-top: 1px solid #eee;
+            margin-top: 10px;
+        }
+
+        .custom-type-input {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .custom-type-input input[type="text"] {
+            flex: 1;
+            padding: 4px;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+        }
+
+        .custom-type-input input[type="number"] {
+            width: 60px;
+            padding: 4px;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+        }
+
+        .custom-type-input .delete-btn {
+            color: #ff4d4f;
+            cursor: pointer;
+            padding: 4px 8px;
+        }
+
+        .add-type-btn {
+            color: #1890ff;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        .key-input-form input {
+            width: 100%;
+            height: 34px;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .loading-text {
+            padding-left: 16px;
+            font-size: 16px;
+            font-weight: 500;
+            color: #3498db;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="state-part">
+            <div class="control-panel">
+                <button class="control-btn refresh-btn">换一批题目</button>
+                <!-- TODO: 本次阅卷整体情况分析 -->
+                <button class="control-btn summary-btn" disabled>生成总结(待实现)</button>
+            </div>
+        </div>
+        <div class="main-container">
+            <div class="question-part">
+                <div class="question-list"></div>
+            </div>
+            <div class="main-content">
+                <div class="question-content">
+                    <!-- 题目内容 -->
+                </div>
+                <div class="answer-area">
+                    <textarea placeholder="请在此输入你的作答..."></textarea>
+                    <div class="answer-actions">
+                        <button class="submit-answer">提交AI阅卷</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加弹框和toast组件 -->
+    <div class="modal-overlay">
+        <div class="modal key-start" style="display: none;">
+            <div class="modal-header">
+                <h3>检测到本地已保存api_key,是否直接开始答题？</h3>
+            </div>
+            <div class="modal-footer">
+                <button class="control-btn refresh-btn" id="startKey">开始答题</button>
+            </div>
+        </div>
+        <!-- 添加密钥验证弹框 -->
+        <div class="modal key-verification" style="display: none;">
+            <div class="modal-header">
+                <h3>输入deepseek的api_key</h3>
+            </div>
+            <div class="key-input-form">
+                <input type="password" id="keyInput" placeholder="输入deepseek(因为他便宜)api_key，其他平台接口请自己copy网页改代码">
+                <div class="error-message" style="color: red; display: none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="control-btn refresh-btn" id="verifyKey">确认</button>
+            </div>
+        </div>
+        <div class="modal question-settings" style="display: none;">
+            <div class="modal-header">
+                <h3>设置题目数量</h3>
+                <span class="modal-close">&times;</span>
+            </div>
+            <div class="question-type-form">
+                <div class="form-item">
+                    <label>HTML</label>
+                    <input type="number" name="html" min="0" value="0">
+                </div>
+                <div class="form-item">
+                    <label>CSS</label>
+                    <input type="number" name="css" min="0" value="0">
+                </div>
+                <div class="form-item">
+                    <label>JavaScript</label>
+                    <input type="number" name="javascript" min="0" value="0">
+                </div>
+                <div class="form-item">
+                    <label>TypeScript</label>
+                    <input type="number" name="typescript" min="0" value="0">
+                </div>
+                <div class="form-item">
+                    <label>Vue</label>
+                    <input type="number" name="vue3" min="0" value="0">
+                </div>
+                <div class="form-item">
+                    <label>React</label>
+                    <input type="number" name="react" min="0" value="0">
+                </div>
+                <div class="form-item">
+                    <label>Webpack</label>
+                    <input type="number" name="webpack" min="0" value="0">
+                </div>
+                <div class="form-item">
+                    <label>Git</label>
+                    <input type="number" name="gulp" min="0" value="0">
+                </div>
+                <div class="form-item">
+                    <label>性能优化</label>
+                    <input type="number" name="performance" min="0" value="0">
+                </div>
+                <div class="form-item">
+                    <label>微服务</label>
+                    <input type="number" name="microservice" min="0" value="0">
+                </div>
+                <div class="form-item">
+                    <label>NodeJS</label>
+                    <input type="number" name="nodejs" min="0" value="0">
+                </div>
+                <div class="form-item">
+                    <label>算法</label>
+                    <input type="number" name="algorithm" min="0" value="0">
+                </div>
+                
+                <!-- 添加自定义题型部分 -->
+                <div class="add-custom-type">
+                    <div id="customTypes"></div>
+                    <span class="add-type-btn" onclick="addCustomType()">
+                        <span>+</span> 添加自定义题型
+                    </span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="control-btn refresh-btn" id="confirmQuestions">确认</button>
+            </div>
+        </div>
+    </div>
+    <div class="toast"></div>
+
+    <!-- 添加loading遮罩 -->
+    <div class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">接口调用比较慢(获取题目大概需要1min,阅卷大概20s)，不要着急～</div>
+    </div>
+
+    <script>
+        // 模拟题目数据
+        const questions = [];
+
+        function handleLtGt(str) {
+            return str.replace('<', '&lt;').replace('>', '&gt;')
+        }
+
+        const questionList = document.querySelector('.question-list');
+        const questionContent = document.querySelector('.question-content');
+        const textarea = document.querySelector('textarea');
+        const submitAnswerBtn = document.querySelector('.submit-answer');
+        let currentQuestion = null;
+
+        const refreshBtn = document.querySelector('.refresh-btn');
+
+        const STORAGE_KEY = 'questionTypeSettings';
+        const CUSTOM_TYPES_KEY = 'customQuestionTypes';
+        let customTypes = [];
+
+        const loadingOverlay = document.querySelector('.loading-overlay');
+
+        // 添加自定义题型
+        function addCustomType(name = '', num = 0) {
+            const customTypesContainer = document.getElementById('customTypes');
+            const typeDiv = document.createElement('div');
+            typeDiv.className = 'custom-type-input';
+            typeDiv.innerHTML = `
+                <input type="text" placeholder="输入题型名称" value="${name}" class="custom-type-name">
+                <input type="number" min="0" value="${num}" class="custom-type-num">
+                <span class="delete-btn" onclick="deleteCustomType(this)">×</span>
+            `;
+            customTypesContainer.appendChild(typeDiv);
+        }
+
+        // 删除自定义题型
+        function deleteCustomType(element) {
+            element.parentElement.remove();
+        }
+
+        // 从localStorage加载题型设置
+        function loadQuestionTypeSettings() {
+            // 加载预设题型设置
+            const settings = localStorage.getItem(STORAGE_KEY);
+            if (settings) {
+                const savedSettings = JSON.parse(settings);
+                document.querySelectorAll('.question-type-form input').forEach(input => {
+                    if (savedSettings[input.name] !== undefined) {
+                        input.value = savedSettings[input.name];
+                    }
+                });
+            }
+
+            // 加载自定义题型
+            const savedCustomTypes = localStorage.getItem(CUSTOM_TYPES_KEY);
+            if (savedCustomTypes) {
+                customTypes = JSON.parse(savedCustomTypes);
+                customTypes.forEach(type => {
+                    addCustomType(type.name, type.num);
+                });
+            }
+        }
+
+        // 保存题型设置到localStorage
+        function saveQuestionTypeSettings() {
+            // 保存预设题型设置
+            const settings = {};
+            document.querySelectorAll('.question-type-form input[name]').forEach(input => {
+                settings[input.name] = parseInt(input.value) || 0;
+            });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+
+            // 保存自定义题型
+            customTypes = [];
+            document.querySelectorAll('.custom-type-input').forEach(div => {
+                const name = div.querySelector('.custom-type-name').value.trim();
+                const num = parseInt(div.querySelector('.custom-type-num').value) || 0;
+                if (name) {
+                    customTypes.push({ name, num });
+                }
+            });
+            localStorage.setItem(CUSTOM_TYPES_KEY, JSON.stringify(customTypes));
+        }
+
+        // 渲染题目列表
+        function renderQuestionList() {
+            questionList.innerHTML = questions.map(q => `
+                <div class="question-item" data-id="${q.id}">
+                    <div>第${q.id}题：${q.title}</div>
+                <div class="status-tag ${q.answered && !q.checked ? 'answered' : ''}">${q.checked ? (new Array(q.score).fill('🌟').join('')) : (q.answered ? '待提交' : '')}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderQuestion(q) {
+            const question = document.querySelector(`.question-item[data-id="${q.id}"]`)
+            question.innerHTML = `
+                <div>第${q.id}题：${q.title}</div>
+                <div class="status-tag ${q.answered && !q.checked ? 'answered' : ''}">${q.checked ? (new Array(q.score).fill('🌟').join('')) : (q.answered ? '待提交' : '')}</div>
+            `
+        }
+
+        // 显示当前题目
+        function showQuestion(question) {
+            if (!question) return;
+            currentQuestion = question;
+            questionContent.innerHTML = `<h3>第${question.id}题：${question.title}</h3><p>${question.content}</p>${question.checked ? `<br /><h3>AI阅卷结果 ——【评分 ${new Array(question.score).fill('🌟').join('')}】</h3><p>${question.check}</p>` : ''}`;
+            textarea.value = question.answer || '';
+            
+            // 更新高亮状态
+            document.querySelectorAll('.question-item').forEach(item => {
+                item.classList.remove('active');
+                if (parseInt(item.dataset.id) === question.id) {
+                    item.classList.add('active');
+                }
+            });
+        }
+
+        // 事件监听
+        questionList.addEventListener('click', (e) => {
+            const item = e.target.closest('.question-item');
+            if (item) {
+                // 保存当前答案
+                if (currentQuestion) {
+                    currentQuestion.answer = textarea.value;
+                    if (currentQuestion.answer) {
+                        currentQuestion.answered = true
+                        renderQuestion(currentQuestion)
+                    }
+                }
+                
+                const id = parseInt(item.dataset.id);
+                const question = questions.find(q => q.id === id);
+                showQuestion(question);
+            }
+        });
+
+        function handleRequestBody(prompt, json) {
+            const obj = {
+                "model": "deepseek-chat",
+                "messages": [
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": json}
+                ],
+                "stream": false
+            }
+            return obj
+        }
+
+        // 显示/隐藏loading的函数
+        function showLoading() {
+            loadingOverlay.style.display = 'flex';
+        }
+
+        function hideLoading() {
+            loadingOverlay.style.display = 'none';
+        }
+
+        // 修改提交答案的处理逻辑
+        submitAnswerBtn.addEventListener('click', async () => {
+            const answerContent = textarea.value.trim();
+            
+            if (!answerContent) {
+                showToast('请输入答案');
+                return;
+            }
+
+            showLoading(); // 显示loading
+            const requestbody = handleRequestBody(
+                `你是一个客观公正、技术能力超强但语气温和的面试考核官。
+                对方是一个家境贫苦自强不息虽然有点愚笨但是很努力的可怜面试者。
+                请对对方的面试回答做一个整体评价和评分，指出出题的核心考点，并指出回答中可以改进的部分。
+                回复格式只能按照给出的示例结构返回，数据结构示例为{ "score": 0, "comment": "评语内容"}。其中score取值范围为0-5，comment返回内容中不要出现名称词汇。`,
+                `对于您给出的问题【${currentQuestion.content}】,我的回答是【${answerContent}】。请您对我的提问给予评价。`
+            )
+
+            const savedKey = localStorage.getItem(KEY_STORAGE);
+            try {
+                const response = await fetch('https://api.deepseek.com/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + savedKey
+                    },
+                    body: JSON.stringify(requestbody)
+                });
+
+                if (!response.ok) {
+                    throw new Error('阅卷失败');
+                }
+
+                const result = await response.json();
+                // 处理阅卷结果
+                currentQuestion.answered = true;
+                currentQuestion.answer = answerContent;
+                try {
+                    const res = JSON.parse(result.choices[0].message.content)
+                    currentQuestion.checked = true;
+                    currentQuestion.check = handleLtGt(res.comment);
+                    currentQuestion.score = res.score;
+                    // 更新UI显示
+                    showToast('阅卷完成');
+                } catch (e) {
+                    showToast('阅卷失败，请稍后再试');
+                }
+            } catch (error) {
+                console.error('阅卷失败:', error);
+                showToast('阅卷失败，请稍后重试');
+            } finally {
+                hideLoading();
+                renderQuestion(currentQuestion);
+                showQuestion(currentQuestion);
+            }
+        });
+
+        // 修改获取新题目的相关代码
+        const modal = document.querySelector('.modal-overlay');
+        const modalClose = document.querySelector('.modal-close');
+        const toast = document.querySelector('.toast');
+        const confirmBtn = document.getElementById('confirmQuestions');
+
+        // 显示toast提示
+        function showToast(message, duration = 3000) {
+            toast.textContent = message;
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, duration);
+        }
+
+        // 修改打开弹框的事件处理
+        refreshBtn.addEventListener('click', () => {
+            modal.style.display = 'flex';
+            startPracticeModal.style.display = 'none'
+            keyVerificationModal.style.display = 'none';
+            questionSettingsModal.style.display = 'block';
+            loadQuestionTypeSettings(); // 加载上次的设置
+        });
+
+        // 关闭弹框
+        modalClose.addEventListener('click', () => {
+            modal.style.display = 'none';
+            startPracticeModal.style.display = 'none'
+            keyVerificationModal.style.display = 'none';
+            questionSettingsModal.style.display = 'none';
+        });
+
+        // 添加密钥验证相关代码
+        const KEY_STORAGE = 'interview_key';
+        const keyVerificationModal = document.querySelector('.key-verification');
+        const startPracticeModal = document.querySelector('.key-start');
+        const questionSettingsModal = document.querySelector('.question-settings');
+        const keyInput = document.getElementById('keyInput');
+        const verifyKeyBtn = document.getElementById('verifyKey');
+        const startBtn = document.getElementById('startKey');
+        const errorMessage = document.querySelector('.error-message');
+        const defaultTypes = [{type: 'html', num: 5}, {type: 'css', num: 5}, {type: 'js', num: 5}, {type: 'webpack', num: 2}, {type: '性能优化', num: 2}, {type: '算法', num: 3}]
+
+        // 修改确认按钮的事件处理
+        confirmBtn.addEventListener('click', () => {
+            const inputs = [...document.querySelectorAll('.question-type-form input[name]'), 
+                           ...document.querySelectorAll('.custom-type-input input[type="number"]')];
+            let total = 0;
+            const questionTypes = [];
+
+            // 收集所有输入值并验证
+            inputs.forEach(input => {
+                const value = parseInt(input.value) || 0;
+                if (value < 0) {
+                    showToast('题目数量不能为负数');
+                    return;
+                }
+                total += value;
+            });
+
+            if (total > 50) {
+                showToast('题目总数不能超过50道');
+                return;
+            }
+
+            if (total === 0) {
+                showToast('请至少选择一道题目');
+                return;
+            }
+
+            // 收集预设题型
+            document.querySelectorAll('.question-type-form input[name]').forEach(input => {
+                const value = parseInt(input.value) || 0;
+                if (value > 0) {
+                    questionTypes.push({
+                        type: input.name,
+                        num: value
+                    });
+                }
+            });
+
+            // 收集自定义题型
+            document.querySelectorAll('.custom-type-input').forEach(div => {
+                const name = div.querySelector('.custom-type-name').value.trim();
+                const num = parseInt(div.querySelector('.custom-type-num').value) || 0;
+                if (name && num > 0) {
+                    questionTypes.push({
+                        type: name,
+                        num: num
+                    });
+                }
+            });
+
+            // 保存设置到localStorage
+            saveQuestionTypeSettings();
+
+            // 调用获取新题目的接口
+            fetchNewQuestions(questionTypes);
+        });
+
+        // 修改获取新题目的函数
+        async function fetchNewQuestions(questionTypes) {
+            showLoading(); // 显示loading
+            const requestbody = handleRequestBody(
+                `你是一个擅长设计面试题的前端领域专家。你设计的面试题非常全面，从基础到加深均有涉猎。
+                你查阅过成千上万的前端领域面试题题库，出题的设计思路围绕着挖掘答题人的技术水平。前端领域内的每个技术方向、每个框架你都有涉猎。
+                回复格式只能按照给出的示例结构返回，数据结构示例为[{ "title": "标题", "content": "描述" }]。 其中title表达该题的核心考点，content则是题目的具体描述。`,
+                `现在需要给出一组前端面试题，包含${questionTypes.filter(one => one.num).map(one => `${one.type}类型题目${one.num}道`).join('、')}。你已经出过这些题目：${questions?.map(one => one.content).join('、')}，请避免题目重复出现。`
+            );
+            const savedKey = localStorage.getItem(KEY_STORAGE);
+            try {
+                const response = await fetch('https://api.deepseek.com/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + savedKey
+                    },
+                    body: JSON.stringify(requestbody)
+                });
+                
+                if (response.status === 401) {
+                    localStorage.removeItem(KEY_STORAGE);
+                    keyInput.value = '';
+                    errorMessage.textContent = '无效密钥';
+                    errorMessage.style.display = 'block';
+                    modal.style.display = 'flex';
+                    startPracticeModal.style.display = 'none'
+                    keyVerificationModal.style.display = 'block';
+                    questionSettingsModal.style.display = 'none';
+                    return;
+                }
+                
+                if (!response.ok) {
+                    throw new Error('获取题目失败');
+                }
+
+                const data = await response.json();
+                
+                const res = JSON.parse(data.choices[0].message.content)
+                questions.length = 0;
+                questions.push(...res.map((item, index) => ({
+                    id: index + 1,
+                    title: handleLtGt(item.title),
+                    content: handleLtGt(item.content),
+                    answered: false,
+                    answer: ''
+                })));
+                renderQuestionList();
+                showQuestion(questions[0]);
+                modal.style.display = 'none';
+                startPracticeModal.style.display = 'none'
+                keyVerificationModal.style.display = 'none';
+                questionSettingsModal.style.display = 'none';
+            } catch (error) {
+                console.error('获取题目失败:', error);
+                showToast('获取新题目失败');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // 初始化验证
+        async function initializeApp() {
+            const savedKey = localStorage.getItem(KEY_STORAGE);
+            if (savedKey) {
+                modal.style.display = 'flex';
+                startPracticeModal.style.display = 'block'
+                return;
+            }
+            
+            // 显示密钥验证弹框
+            modal.style.display = 'flex';
+            keyVerificationModal.style.display = 'block';
+            questionSettingsModal.style.display = 'none';
+        }
+
+        startBtn.addEventListener('click', async() => {
+            showLoading();
+            try {
+                const localTypes = JSON.parse(localStorage.getItem(CUSTOM_TYPES_KEY))
+                const questionTypes =  localTypes?.length > 0 ? localTypes : defaultTypes;
+                await fetchNewQuestions(questionTypes);
+                renderQuestionList();
+                showQuestion(questions[0]);
+            } finally {
+                hideLoading();
+            }
+        })
+
+        // 验证按钮点击事件
+        verifyKeyBtn.addEventListener('click', async () => {
+            const key = keyInput.value.trim();
+            if (!key) {
+                errorMessage.textContent = '请输入密钥';
+                errorMessage.style.display = 'block';
+                return;
+            }
+            
+            localStorage.setItem(KEY_STORAGE, key);
+            const localTypes = JSON.parse(localStorage.getItem(CUSTOM_TYPES_KEY))
+            const questionTypes =  localTypes?.length > 0 ? localTypes : defaultTypes;
+            await fetchNewQuestions(questionTypes);
+        });
+
+        // 修改原有的初始化调用
+        window.addEventListener('DOMContentLoaded', initializeApp);
+    </script>
+</body>
+</html>
