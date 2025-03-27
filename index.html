@@ -569,7 +569,7 @@
 
         // 处理数据异常
         function replaceOther(str) {
-            return str.replace(/```json|```|/g, '')
+            return str.replace(/```json|```|\n|#/g, '')
         }
 
         // 从localStorage加载题型设置
@@ -579,8 +579,8 @@
             if (settings) {
                 const savedSettings = JSON.parse(settings);
                 document.querySelectorAll('.question-type-form input').forEach(input => {
-                    if (savedSettings[input.name] !== undefined) {
-                        input.value = savedSettings[input.name];
+                    if (savedSettings.some(one => one.type === input.name)?.length) {
+                        input.value = savedSettings.some(one => one.type === input.name)[0].type;
                     }
                 });
             }
@@ -598,19 +598,19 @@
         // 保存题型设置到localStorage
         function saveQuestionTypeSettings() {
             // 保存预设题型设置
-            const settings = {};
+            const settings = [];
             document.querySelectorAll('.question-type-form input[name]').forEach(input => {
-                settings[input.name] = parseInt(input.value) || 0;
-            });
+                settings.push({type: input.name, num: input.value || 0});
+            }); 
             localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 
             // 保存自定义题型
             customTypes = [];
             document.querySelectorAll('.custom-type-input').forEach(div => {
-                const name = div.querySelector('.custom-type-name').value.trim();
+                const type = div.querySelector('.custom-type-name').value.trim();
                 const num = parseInt(div.querySelector('.custom-type-num').value) || 0;
-                if (name) {
-                    customTypes.push({ name, num });
+                if (type) {
+                    customTypes.push({ type, num });
                 }
             });
             localStorage.setItem(CUSTOM_TYPES_KEY, JSON.stringify(customTypes));
@@ -676,6 +676,7 @@
                     {"role": "system", "content": prompt},
                     {"role": "user", "content": json}
                 ],
+                "response_format": {"type": "json_object"},
                 "stream": false
             }
             return obj
@@ -701,7 +702,7 @@
 
             showLoading(); // 显示loading
             const requestbody = handleRequestBody(
-                `你是一个客观公正、技术能力超强但语气温和的面试考核官。对方是一个家境贫苦自强不息虽然有点愚笨但是很努力的可怜面试者。请对对方的面试回答做一个整体评价和评分，指出出题的核心考点，并指出回答中可以改进的部分。回复格式只能按照给出的示例结构返回，数据结构示例为{ "score": 0, "comment": "评语内容"}。其中score取值范围为0-5，comment返回内容中不要出现名称词汇。`,
+                `你是一个客观公正、技术能力超强但语气温和的面试考核官。对方是一个家境贫苦自强不息虽然有点愚笨但是很努力的可怜面试者。请对对方的面试回答做一个整体评价和评分，指出出题的核心考点，对于答对的内容给予肯定，并指出回答中可以改进的部分。回复格式只能按照给出的示例结构返回。EXAMPLE JSON OUTPUT: { "score": 0, "comment": "评语内容"}。其中score取值范围为0-5（准确率重80%，表达清晰度权重20%），comment返回内容中不要出现名称词汇。`,
                 `对于您给出的问题【${currentQuestion.content}】,我的回答是【${answerContent}】。请您对我的提问给予评价。`
             )
 
@@ -785,7 +786,20 @@
         const verifyKeyBtn = document.getElementById('verifyKey');
         const startBtn = document.getElementById('startKey');
         const errorMessage = document.querySelector('.error-message');
-        const defaultTypes = [{type: 'html', num: 1}]
+        const defaultTypes = [{type: 'html', num: 2}]
+
+        function getAllType() {
+            let localTypes = [];
+            let customTypes = [];
+            try {
+                localTypes = JSON.parse(localStorage.getItem(STORAGE_KEY)) || []
+            } catch(e) {}
+            try {
+                customTypes = JSON.parse(localStorage.getItem(CUSTOM_TYPES_KEY)) || []
+            } catch(e) {}
+            const questionTypes =  localTypes.concat(customTypes)?.length > 0 ? localTypes.concat(customTypes) : defaultTypes;
+            return questionTypes
+        }
 
         // 修改确认按钮的事件处理
         confirmBtn.addEventListener('click', () => {
@@ -848,10 +862,8 @@
         async function fetchNewQuestions(questionTypes) {
             showLoading(); // 显示loading
             const requestbody = handleRequestBody(
-                `你是一个擅长设计面试题的前端领域专家。你设计的面试题非常全面，从基础到加深均有涉猎。
-                你查阅过成千上万的前端领域面试题题库，出题的设计思路围绕着挖掘答题人的技术水平。前端领域内的每个技术方向、每个框架你都有涉猎。
-                回复格式只能按照给出的示例结构返回，数据结构示例为[{ "title": "标题", "content": "描述" }]。 其中title表达该题的核心考点，content则是题目的具体描述。`,
-                `现在需要给出一组前端面试题，包含${questionTypes.filter(one => one.num).map(one => `${one.type}类型题目${one.num}道`).join('、')}。你已经出过这些题目：${questions?.map(one => one.content).join('、')}，请避免题目重复出现。`
+                `你是一个擅长设计面试题的前端领域专家。你设计的面试题非常全面，从基础到加深均有涉猎。你查阅过成千上万的前端领域面试题题库，出题的设计思路围绕着挖掘答题人的技术水平。前端领域内的每个技术方向、每个框架你都有涉猎。返回的数据结构不分类，直接返回一个完整的数组结构。EXAMPLE JSON OUTPUT为：[{ "title": "标题", "type": "类型1", "content": "描述" }, { "title": "标题", "type": "类型2", "content": "描述" }]。 其中title表达该题的核心考点， type为设置的题目类型，content则是题目的具体描述。`,
+                `现在需要给出一组前端面试题，包含${questionTypes.filter(one => one.num).map(one => `${one.type}类型题目${one.num}道`).join('、')}。${questions?.length ? `你已经出过这些题目：${questions.map(one => one.content).join('、')}，请避免题目重复出现。` : ''}`
             );
             const savedKey = localStorage.getItem(KEY_STORAGE);
             try {
@@ -859,7 +871,7 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + savedKey
+                        'Authorization': 'Bearer ' + savedKey,
                     },
                     body: JSON.stringify(requestbody)
                 });
@@ -883,8 +895,9 @@
                 const data = await response.json();
                 
                 const res = JSON.parse(replaceOther(data.choices[0].message.content))
+                const list = res?.questions?.length ? res?.questions : res
                 questions.length = 0;
-                questions.push(...res.map((item, index) => ({
+                questions.push(...list.map((item, index) => ({
                     id: index + 1,
                     title: handleLtGt(item.title),
                     content: handleLtGt(item.content),
@@ -919,12 +932,10 @@
             keyVerificationModal.style.display = 'block';
             questionSettingsModal.style.display = 'none';
         }
-
         startBtn.addEventListener('click', async() => {
             showLoading();
             try {
-                const localTypes = JSON.parse(localStorage.getItem(CUSTOM_TYPES_KEY))
-                const questionTypes =  localTypes?.length > 0 ? localTypes : defaultTypes;
+                const questionTypes = getAllType()
                 await fetchNewQuestions(questionTypes);
                 renderQuestionList();
                 showQuestion(questions[0]);
@@ -943,8 +954,7 @@
             }
             
             localStorage.setItem(KEY_STORAGE, key);
-            const localTypes = JSON.parse(localStorage.getItem(CUSTOM_TYPES_KEY))
-            const questionTypes =  localTypes?.length > 0 ? localTypes : defaultTypes;
+            const questionTypes =  getAllType()
             await fetchNewQuestions(questionTypes);
         });
 
