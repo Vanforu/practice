@@ -78,13 +78,14 @@
             display: flex;
             flex-direction: column;
         }
-        
-        .question-content {
+        .question-container {
             padding: 20px;
             background: #fff;
             border: 1px solid #ddd;
             border-radius: 4px;
             margin-bottom: 20px;
+            position: relative;
+            min-height: 48px;
         }
         
         .answer-area {
@@ -129,6 +130,7 @@
             border-radius: 4px;
             cursor: pointer;
             color: white;
+            margin-right: 10px;
         }
         
         .refresh-btn {
@@ -144,6 +146,83 @@
         
         .refresh-btn:hover {
             background: #F57C00;
+        }
+
+        /* 添加待学习清单按钮样式 */
+        .add-to-learn-btn {
+            background: #4CAF50;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            position: absolute;
+            right: 5px;
+            top: 5px;
+        }
+        
+        .add-to-learn-btn:hover {
+            background: #388E3C;
+        }
+        
+        .learn-list-btn {
+            background: #2196F3;
+        }
+        
+        .learn-list-btn:hover {
+            background: #1976D2;
+        }
+        
+        /* 待学习清单弹窗样式 */
+        .learn-list-modal {
+            width: 700px;
+            max-width: 90vw;
+        }
+        
+        .learn-list-item {
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-direction: column;
+        }
+        
+        .learn-list-item-content {
+            flex: 1;
+            cursor: pointer;
+            background: #e0e0e0;
+            width: 100%;
+            text-align: left;
+            padding: 8px 12px;
+            margin-top: 5px;
+        }
+
+        .learn-list-container {
+            height: 62vh;
+            overflow: auto;
+        }
+        
+        .remove-learn-btn {
+            background: #f44336;
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 5px;
+        }
+        
+        .remove-learn-btn:hover {
+            background: #d32f2f;
+        }
+        
+        .learn-item-detail {
+            padding: 10px;
+            background: #f5f5f5;
+            display: none;
+            border-bottom-left-radius: 4px;
+            border-bottom-right-radius: 4px;
         }
 
         /* 添加弹框相关样式 */
@@ -310,6 +389,7 @@
         <div class="state-part">
             <div class="control-panel">
                 <button class="control-btn refresh-btn">换一批题目</button>
+                <button class="control-btn learn-list-btn">待学习清单</button>
                 <!-- TODO: 本次阅卷整体情况分析 -->
                 <button class="control-btn summary-btn" disabled>生成总结(待实现)</button>
             </div>
@@ -319,8 +399,11 @@
                 <div class="question-list"></div>
             </div>
             <div class="main-content">
-                <div class="question-content">
-                    <!-- 题目内容 -->
+                <div class="question-container">
+                    <button class="add-to-learn-btn">添加到待学习清单</button>
+                    <div class="question-content">
+                        <!-- 题目内容 -->
+                    </div>
                 </div>
                 <div class="answer-area">
                     <textarea placeholder="请在此输入你的作答..."></textarea>
@@ -422,6 +505,18 @@
                 <button class="control-btn refresh-btn" id="confirmQuestions">确认</button>
             </div>
         </div>
+        <!-- 添加待学习清单弹窗 -->
+        <div class="modal learn-list-modal" style="display: none;">
+            <div class="modal-header">
+                <h3>待学习清单</h3>
+            </div>
+            <div class="learn-list-container">
+                <!-- 待学习清单内容将在这里动态生成 -->
+            </div>
+            <div class="modal-footer">
+                <button class="control-btn refresh-btn" id="closeLearnList">关闭</button>
+            </div>
+        </div>
     </div>
     <div class="toast"></div>
 
@@ -436,7 +531,7 @@
         const questions = [];
 
         function handleLtGt(str) {
-            return str.replace('<', '&lt;').replace('>', '&gt;')
+            return str.replace(/</g, '&lt;').replace(/>/g, '&gt;')
         }
 
         const questionList = document.querySelector('.question-list');
@@ -469,6 +564,12 @@
         // 删除自定义题型
         function deleteCustomType(element) {
             element.parentElement.remove();
+        }
+
+
+        // 处理数据异常
+        function replaceOther(str) {
+            return str.replace(/```json|```|/g, '')
         }
 
         // 从localStorage加载题型设置
@@ -600,10 +701,7 @@
 
             showLoading(); // 显示loading
             const requestbody = handleRequestBody(
-                `你是一个客观公正、技术能力超强但语气温和的面试考核官。
-                对方是一个家境贫苦自强不息虽然有点愚笨但是很努力的可怜面试者。
-                请对对方的面试回答做一个整体评价和评分，指出出题的核心考点，并指出回答中可以改进的部分。
-                回复格式只能按照给出的示例结构返回，数据结构示例为{ "score": 0, "comment": "评语内容"}。其中score取值范围为0-5，comment返回内容中不要出现名称词汇。`,
+                `你是一个客观公正、技术能力超强但语气温和的面试考核官。对方是一个家境贫苦自强不息虽然有点愚笨但是很努力的可怜面试者。请对对方的面试回答做一个整体评价和评分，指出出题的核心考点，并指出回答中可以改进的部分。回复格式只能按照给出的示例结构返回，数据结构示例为{ "score": 0, "comment": "评语内容"}。其中score取值范围为0-5，comment返回内容中不要出现名称词汇。`,
                 `对于您给出的问题【${currentQuestion.content}】,我的回答是【${answerContent}】。请您对我的提问给予评价。`
             )
 
@@ -627,7 +725,7 @@
                 currentQuestion.answered = true;
                 currentQuestion.answer = answerContent;
                 try {
-                    const res = JSON.parse(result.choices[0].message.content)
+                    const res = JSON.parse(replaceOther(result.choices[0].message.content))
                     currentQuestion.checked = true;
                     currentQuestion.check = handleLtGt(res.comment);
                     currentQuestion.score = res.score;
@@ -687,7 +785,7 @@
         const verifyKeyBtn = document.getElementById('verifyKey');
         const startBtn = document.getElementById('startKey');
         const errorMessage = document.querySelector('.error-message');
-        const defaultTypes = [{type: 'html', num: 5}, {type: 'css', num: 5}, {type: 'js', num: 5}, {type: 'webpack', num: 2}, {type: '性能优化', num: 2}, {type: '算法', num: 3}]
+        const defaultTypes = [{type: 'html', num: 1}]
 
         // 修改确认按钮的事件处理
         confirmBtn.addEventListener('click', () => {
@@ -784,7 +882,7 @@
 
                 const data = await response.json();
                 
-                const res = JSON.parse(data.choices[0].message.content)
+                const res = JSON.parse(replaceOther(data.choices[0].message.content))
                 questions.length = 0;
                 questions.push(...res.map((item, index) => ({
                     id: index + 1,
@@ -852,6 +950,165 @@
 
         // 修改原有的初始化调用
         window.addEventListener('DOMContentLoaded', initializeApp);
+
+        // 添加待学习清单相关常量和变量
+        const LEARN_LIST_KEY = 'learnListQuestions';
+        const addToLearnBtn = document.querySelector('.add-to-learn-btn');
+        const learnListBtn = document.querySelector('.learn-list-btn');
+        const learnListModal = document.querySelector('.learn-list-modal');
+        const learnListContainer = document.querySelector('.learn-list-container');
+        const closeLearnListBtn = document.getElementById('closeLearnList');
+        
+        // 从localStorage加载待学习清单
+        function loadLearnList() {
+            const learnList = localStorage.getItem(LEARN_LIST_KEY);
+            return learnList ? JSON.parse(learnList) : [];
+        }
+        
+        // 保存待学习清单到localStorage
+        function saveLearnList(learnList) {
+            localStorage.setItem(LEARN_LIST_KEY, JSON.stringify(learnList));
+        }
+        
+        // 添加题目到待学习清单
+        function addToLearnList(question) {
+            if (!question) return;
+            
+            const learnList = loadLearnList();
+            
+            // 检查是否已存在相同题目
+            const existingTypeIndex = learnList.findIndex(item => item.type === question.title.split('：')[0]);
+            
+            if (existingTypeIndex !== -1) {
+                // 检查该类型下是否已存在相同题目
+                const existingQuestionIndex = learnList[existingTypeIndex].questions.findIndex(
+                    q => q.title === question.title && q.content === question.content
+                );
+                
+                if (existingQuestionIndex === -1) {
+                    // 添加新题目到已存在的类型中
+                    learnList[existingTypeIndex].questions.push({
+                        title: question.title,
+                        content: question.content
+                    });
+                } else {
+                    showToast('该题目已在待学习清单中');
+                    return;
+                }
+            } else {
+                // 添加新类型和题目
+                learnList.push({
+                    type: question.title.split('：')[0],
+                    questions: [{
+                        title: question.title,
+                        content: question.content
+                    }]
+                });
+            }
+            
+            saveLearnList(learnList);
+            showToast('已添加到待学习清单');
+        }
+        
+        // 从待学习清单中移除题目
+        function removeFromLearnList(typeIndex, questionIndex) {
+            const learnList = loadLearnList();
+            
+            if (learnList[typeIndex] && learnList[typeIndex].questions[questionIndex]) {
+                learnList[typeIndex].questions.splice(questionIndex, 1);
+                
+                // 如果该类型下没有题目了，则移除该类型
+                if (learnList[typeIndex].questions.length === 0) {
+                    learnList.splice(typeIndex, 1);
+                }
+                
+                saveLearnList(learnList);
+                showToast('已从待学习清单中移除');
+                renderLearnList();
+            }
+        }
+        
+        // 渲染待学习清单
+        function renderLearnList() {
+            const learnList = loadLearnList();
+            
+            if (learnList.length === 0) {
+                learnListContainer.innerHTML = '<p style="padding: 20px; text-align: center;">待学习清单为空</p>';
+                return;
+            }
+            
+            let html = '';
+            
+            learnList.forEach((typeItem, typeIndex) => {
+                
+                typeItem.questions.forEach((question, questionIndex) => {
+                    html += `
+                        <div class="learn-list-item">
+                            <h4 class="learn-list-item-content" onclick="toggleLearnItemDetail(${typeIndex}, ${questionIndex})">
+                                ${handleLtGt(question.title)}
+                            </h4>
+                            <div class="learn-item-detail" id="learn-detail-${typeIndex}-${questionIndex}">
+                                <h4>题目内容：</h4>
+                                <p>${handleLtGt(question.content)}</p>
+                                <h4 style="margin-top: 10px;">相关知识点：</h4>
+                                <p>${typeItem.type}相关知识</p>
+                                <button class="remove-learn-btn" onclick="removeFromLearnList(${typeIndex}, ${questionIndex})">
+                                    从学习清单中移除
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+            });
+            
+            learnListContainer.innerHTML = html;
+        }
+        
+        // 切换显示/隐藏待学习题目详情
+        function toggleLearnItemDetail(typeIndex, questionIndex) {
+            const detailElement = document.getElementById(`learn-detail-${typeIndex}-${questionIndex}`);
+            if (detailElement) {
+                detailElement.style.display = detailElement.style.display === 'block' ? 'none' : 'block';
+            }
+        }
+        
+        // 添加到待学习清单按钮点击事件
+        addToLearnBtn.addEventListener('click', () => {
+            if (currentQuestion) {
+                addToLearnList(currentQuestion);
+            } else {
+                showToast('请先选择一道题目');
+            }
+        });
+        
+        // 显示待学习清单按钮点击事件
+        learnListBtn.addEventListener('click', () => {
+            renderLearnList();
+            modal.style.display = 'flex';
+            startPracticeModal.style.display = 'none';
+            keyVerificationModal.style.display = 'none';
+            questionSettingsModal.style.display = 'none';
+            learnListModal.style.display = 'block';
+        });
+        
+        // 关闭待学习清单按钮点击事件
+        closeLearnListBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+            learnListModal.style.display = 'none';
+        });
+        
+        // 修改关闭弹框事件，添加对待学习清单弹窗的处理
+        modalClose.addEventListener('click', () => {
+            modal.style.display = 'none';
+            startPracticeModal.style.display = 'none';
+            keyVerificationModal.style.display = 'none';
+            questionSettingsModal.style.display = 'none';
+            learnListModal.style.display = 'none';
+        });
+        
+        // 将toggleLearnItemDetail函数添加到全局作用域
+        window.toggleLearnItemDetail = toggleLearnItemDetail;
+        window.removeFromLearnList = removeFromLearnList;
     </script>
 </body>
 </html>
